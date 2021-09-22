@@ -1,0 +1,9 @@
+def GetRandomMove(board_state,player):
+  # pick a random piece and a random legal move for that piece
+  pieces,moves= GetPiecesWithLegalMoves(board_state,player)
+  i = np.random.randint(0,len(pieces)) if type(pieces[0]) == list else 0
+  piece= pieces[i]
+  moves= moves[i]
+  i= np.random.randint(0,len(moves)) if type(moves[0]) == list else 0
+  move= moves[i]
+  return piece,move
