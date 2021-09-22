@@ -1,0 +1,130 @@
+def IsMoveLegal(board_state,start,destination,hypothetical=False):
+      return destination in GetListOfLegalMoves(board_state,start,hypothetical)
+      
+def GetListOfLegalMoves(state,start,hypothetical=False):
+  #main rules function
+  #dictionary of all possible moves for each Black and White piece 
+  moves= {'p': lambda x:[[x[0]+1, x[1]], [x[0]+2, x[1]],[x[0]+1,x[1]+1], [x[0]+1, x[1]-1]],
+     'P': lambda x:[[x[0]-1, x[1]], [x[0]-2, x[1]], [x[0]-1,x[1]-1], [x[0]-1, x[1]+1]],
+     'k': lambda x:[[x[0]+1, x[1]+1], [x[0]-1, x[1]-1], [x[0]-1, x[1]+1], [x[0]+1, x[1]-1],[x[0]+1, x[1]], [x[0]-1, x[1]],[x[0], x[1]+1], [x[0], x[1]-1]],
+     'K': lambda x:[[x[0]+1, x[1]+1], [x[0]-1, x[1]-1], [x[0]-1, x[1]+1], [x[0]+1, x[1]-1],[x[0]+1, x[1]], [x[0]-1, x[1]],[x[0], x[1]+1], [x[0], x[1]-1]],
+     'r': lambda x:[[x[0], i] for i in range(state.shape[1]) if i != x[1]] + [[i, x[1]] for i in range(state.shape[0]) if i != x[0]],
+     'R': lambda x:[[x[0], i] for i in range(state.shape[1]) if i != x[1]] + [[i, x[1]] for i in range(state.shape[0]) if i != x[0]],
+     'b': lambda x:[[i,x[1]-(x[0]-i)] for i in range(state.shape[1]) if i != x[0]] + [[i,x[1]+(x[0]-i)] for i in range(state.shape[1]) if i != x[0]],
+     'B': lambda x:[[i,x[1]-(x[0]-i)] for i in range(state.shape[1]) if i != x[0]] + [[i,x[1]+(x[0]-i)] for i in range(state.shape[1]) if i != x[0]],
+     't': lambda x:[[x[0]+2, x[1]+1], [x[0]+1, x[1]+2], [x[0]-1, x[1]+2], [x[0]-2, x[1]+1], [x[0]-2, x[1]-1], [x[0]-1, x[1]-2], [x[0]+1, x[1]-2], [x[0]+2, x[1]-1]],
+     'T': lambda x:[[x[0]+2, x[1]+1], [x[0]+1, x[1]+2], [x[0]-1, x[1]+2], [x[0]-2, x[1]+1], [x[0]-2, x[1]-1], [x[0]-1, x[1]-2], [x[0]+1, x[1]-2], [x[0]+2, x[1]-1]]}
+
+  piece= state[start[0],start[1]]
+
+  #adds the Rook and Bishop rules towards the Queen's moving capabilities
+  if piece== '.':
+    return []
+  if piece.upper() == 'Q':
+    poss_move= moves['r'](start)+moves['b'](start)
+  else: 
+    poss_move= moves[piece](start)
+ 
+  #pawn cases, down-selecting 
+  if piece.upper() == 'P':
+    if piece == 'p' and start[0] != 1 :
+      del poss_move[1]
+    elif piece == 'P' and start[0] != 6:
+      del poss_move[1]
+    try:
+      if state[poss_move[0][0],poss_move[0][1]] != '.':
+        del poss_move[0]
+    except:
+        del poss_move[0]
+    try:
+      if state[poss_move[-2][0],poss_move[-2][1]]=='.' or state[poss_move[-2][0],poss_move[-2][1]].islower() == piece.islower():
+        del poss_move[-2]
+    except:
+      del poss_move[-2]
+    try:
+      if state[poss_move[-1][0],poss_move[-1][1]]=='.' or state[poss_move[-1][0],poss_move[-1][1]].islower() == piece.islower():
+        del poss_move[-1]
+    except:
+      del poss_move[-1]
+
+  #restricts possible movements to 8x8 board
+  on_board=[x for x in poss_move if x[0]>= 0 and x[0]<=7 and x[1]>=0 and x[1]<= 7]
+
+  #case:own piece is blocking movement
+  not_blocked= [x for x in on_board if state[x[0],x[1]]=='.' or state[x[0],x[1]].islower() != piece.islower()]
+  if piece.upper() in ['P', 'Q', 'B', 'R']:
+    not_blocked= [x for x in not_blocked if IsClearPath(state,start,x)]
+  if hypothetical:
+    return not_blocked
+
+  #case: restricts if player in check
+  player='black' if piece.islower() else 'white'
+  not_in_check=[x for x in not_blocked if not DoesMovePutPlayerInCheck(state,player,start,x)]
+  return not_in_check
+
+def GetPiecesWithLegalMoves(board_state,player):
+  # gets a list of all pieces for the current player that have legal moves 
+  if player== 'black':
+    black_pieces= ['b','r','t','p','q','k']
+    black= np.isin(board_state,black_pieces)
+    pieces= np.array(np.nonzero(black)).T
+
+  elif player=='white':
+    white_pieces= ['B','R','T','P','Q','K']
+    white= np.isin(board_state, white_pieces)
+    pieces= np.array(np.nonzero(white)).T
+
+  moves=[GetListOfLegalMoves(board_state,x) for x in pieces]
+  list_of_pieces=[x.tolist() for i,x in enumerate(pieces) if moves[i]]
+  return list_of_pieces,[m for m in moves if m]
+
+def IsCheckmate(board_state,player):
+  # returns True if the current player is in checkmate, else False
+  return IsInCheck(board_state,player) and GetPiecesWithLegalMoves(board_state,player)[0]==[]
+
+def IsInCheck(board_state, player):
+  if player == 'black':
+    black_king=['k']
+    check_black= board_state == black_king
+    destination= np.array(np.nonzero(check_black)).T.tolist()[0]
+    white_pieces= ['B','R','T','P','Q']
+    white= np.isin(board_state, white_pieces)
+    enemy_pieces= np.array(np.nonzero(white)).T
+  else:
+    white_king=['K']
+    check_white= board_state == white_king
+    destination= np.array(np.nonzero(check_white)).T.tolist()[0]
+    black_pieces= ['b','r','t','p','q']
+    black= np.isin(board_state,black_pieces)
+    enemy_pieces= np.array(np.nonzero(black)).T
+
+  is_in_check= [x for x in enemy_pieces if IsMoveLegal(board_state,x,destination,hypothetical=True)]
+  return is_in_check != []
+  
+def IsClearPath(board_state,start,destination):  
+  #checks path between start and destination for any pieces in the way
+  if start[0] <= destination[0]:
+    rows= list(range(start[0]+1, destination[0]))
+    if start[1] <= destination[1]:
+      cols= list(range(start[1]+1,destination[1]))
+    elif start[1] > destination[1]:
+      cols= list(range(start[1]-1,destination[1],-1))
+  elif start[0] > destination[0]:
+    rows= list(range(destination[0]+1,start[0]))
+    if start[1] <= destination[1]:
+      cols= list(range(destination[1]-1,start[1],-1))
+    elif start[1] > destination[1]:
+      cols= list(range(start[1]+1,destination[1]))
+  
+  if not rows:
+    rows=[start[0] for i in range(len(cols))]
+  if not cols:
+    cols=[start[1] for i in range(len(rows))]
+  return (board_state[rows,cols]== ".").all()
+  
+  
+def DoesMovePutPlayerInCheck(some_state,player, start, destination):
+    # returns True if it puts current player into check
+    state= MovePiece(some_state, start,destination)
+    return IsInCheck(state,player)
+    
