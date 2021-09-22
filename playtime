@@ -1,0 +1,38 @@
+state=ChessBoardSetup()
+DrawBoard(state)
+player='white'
+black_moves=[]
+white_moves=[]
+pieces=[]
+turn=0
+N=25
+
+while not IsCheckmate(state,player) and turn < N:
+  if player=='white':
+    move=GetRandomMove(state,player)
+    white_moves.append(move)
+    piece=state[move[0][0],move[0][1]]
+    state=MovePiece(state,move[0],move[1])
+    player='black'
+    time.sleep(1)
+  else:
+    score,move=GetAlphaBeta(state,player)
+    piece=state[move[0][0],move[0][1]]
+    state=MovePiece(state,move[0],move[1])
+    black_moves.append(move)
+    player='white'
+
+  clear_output()
+  DrawBoard(state)
+  turn+=0.5
+  pieces.append(piece)
+  print(f'turn: {turn}')
+  print(f'Log of White Moves: {white_moves}')
+  print(f'Log of Black Moves: {black_moves}')
+  print(f'Acting Pieces: {pieces}')
+
+# check and print - Stalemate or Checkmate
+if IsCheckmate(state,player)==True:
+  print('Checkmate')
+elif GetListOfLegalMoves(state,move[1])==[]:
+  print('Stalemate')
